@@ -91,7 +91,6 @@ int parse_arguments(int argc, char *argv[], Parameters & params) {
 	return 0;
 }
 
-
 void generate_input_data(std::string & output_path, Parameters & params,
 		std::vector<int> & input_data) {
 	input_data.clear();
@@ -118,15 +117,16 @@ void generate_input_data(std::string & output_path, Parameters & params,
 	output_file.close();
 }
 
-void generate_point_queries(std::string & output_path, Parameters & params, 
-		std::vector<int> & input_data) {
-
+void generate_point_queries(std::string & output_path, Parameters & params, std::vector<int> & input_data) {
 	unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();	
 	std::default_random_engine gen (seed);
+	//this generates the numbers uniformly
 	std::uniform_int_distribution<int>  dist1(0, (size_t) (2.0*params.UB));
+	//this generates the index and the -1 is probably for ensuring index value is in range
 	std::uniform_int_distribution<int>  dist2(0, input_data.size() - 1);
 	std::ofstream output_file(output_path);
 	srand(time(NULL));
+	//P was the total number of point queries
 	for (size_t i = 0; i < params.P; i++) {
 		if (rand()*1.0/RAND_MAX <= 0.2) {
 			// with 0.2 probability, randomly generate point queries, may contain existing
@@ -137,14 +137,43 @@ void generate_point_queries(std::string & output_path, Parameters & params,
 			output_file << input_data[dist2(gen)] << std::endl;
 		}
 	}
-	// The above process may produce duplicate point queries. And the number of exsiting quries
+	// The above process may produce duplicate point queries. And the number of exsiting queries
 	// has 0.8*P as the lower bound.
 	output_file.close();
 
 }
-void generate_range_queries(std::string & output_path, Parameters & params,
-		std::vector<int> & input_data) {
+
+void generate_range_queries(std::string & output_path, Parameters & params, std::vector<int> & input_data) {
 	// Your code starts here ...
+	unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+	std::default_random_engine gen (seed);
+	std::uniform_int_distribution<int> start_point(0, input_data.size() - 1);
+	std::uniform_int_distribution<int> out_of_range_start(params.UB + 1, 2 * params.UB);
+	std::ofstream output_file(output_path);
+	//doc says fixed_range_size = selectivity * N
+	int fixed_range_size = std::max(1, (int)(params.s * params.N));
+	//choose a random size for the range query - which can max be selectivity * actual input size
+	std::uniform_int_distribution<int> rndm_range_size(1, params.s * input_data.size());
+	//R was the total number of range queries
+	for (size_t i = 0; i < params.R; i++) {
+		int strt_idx;
+		//generate 20% out of bound data - same as point query
+		if (rand() * 1.0 / RAND_MAX <= 0.2) { 
+			int start_value = out_of_range_start(gen);
+            int end_value = start_value + fixed_range_size;
+            output_file << start_value << " " << end_value << std::endl;
+		}
+		else{
+			strt_idx = start_point(gen);
+            int end_idx = std::min(strt_idx + fixed_range_size - 1, (int)input_data.size() - 1);
+            output_file << input_data[strt_idx] << " " << input_data[end_idx] << std::endl;
+		}
+	}
+		// int range_size = rndm_range_size(gen);
+		// //clamping the end so it does not go out of bounds
+		// int end_idx = std::min(strt_idx + range_size - 1, (int)input_data.size() - 1);
+		// output_file << input_data[strt_idx] << " " << input_data[end_idx] << std::endl;
+	output_file.close();
 }
 
 
